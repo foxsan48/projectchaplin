@@ -17,6 +17,9 @@
 	$check4 = check($checksOkay, class_exists('AMQPConnection'), 'AMQP not found');
 	$check5 = check($checksOkay, "0" == exec('ffmpeg -version 2>&1; echo $?'), 'Failed: ffmpeg not found');
 	$check6 = check($checksOkay, "0" == exec('npm --version 2>&1; echo $?'), 'Failed: npm not found');
+    $check7 = check($checksOkay, is_writable(APPLICATION_PATH.'/../public/uploads'), 'Failed: public/uploads not writable');
+    $check8 = check($checksOkay, is_writable(APPLICATION_PATH.'/../temp'), 'Failed: temp not writable');
+    $check9 = check($checksOkay, is_writable(APPLICATION_PATH.'/../config'), 'Failed: config not writable');
 ?>
 <div class="widgetbox medium centre">
 	<div class="widgettitle">
@@ -24,7 +27,7 @@
 	</div>
 	<div id="step0" class="widgetbody" style="text-align:left; padding:30px">
 		<p>Welcome to Project Chaplin!</p>
-		<p>Thank you for choosing the newest addition to Internet video sharing.</p>
+		<p>Thank you for choosing the free software way to do video sharing.</p>
 		<p>Project Chaplin features:
 		<ul>
 			<li>A free software, open source licence as standard</li>
@@ -61,6 +64,9 @@
 		<p><strong>AMQP extension (for encoding and importing batch jobs)</strong>: <?php echo $check4 ?></p>
 		<p><strong>Compatible encoder present</strong>: <?php echo $check5 ?></p>
 		<p><strong>Node.js and npm</strong>: <?php echo $check6 ?></p>
+        <p><strong>public/uploads directory writable</strong> <?php echo $check7 ?></p>
+        <p><strong>temp directory writable</strong> <?php echo $check8 ?></p>
+        <p><strong>config directory writable</strong> <?php echo $check9 ?></p>
 		<p></p>
 		<?php if ($checksOkay):?>
 			<p class="centre"><a href="#step2" class="switcher btn btn-success">Great! Let's continue!</a></p>
@@ -122,9 +128,9 @@
 			data-url="/admin/setup/sqltest"
 			data-form="sqlserver"
 			class="ajax btn btn-default">I want to test this</a>
-		<span id="testresult"></span>
-		<a href="#step1" class="switcher btn btn-default"><i class="fa fa-arrow-left"></i> Go back</a>
-		<a href="#step3" class="switcher btn btn-success">Okay! Go ahead!</a>
+		<div id="testresult"></div>
+		<a href="#step1" class="switcher btn btn-default">Back</a>
+		<a href="#step3" class="switcher btn btn-success">Next</a>
 	</div>
 	<div id="step3" class="widgetbody" style="display:none;text-align:left; padding:30px">
 		<h2>Amazing!</h2>
@@ -152,9 +158,9 @@
 			data-url="/admin/setup/amqptest"
 			data-form="amqp"
 			class="ajax btn btn-default">I want to test this</a>
-		<span id="amqpresult"></span>
-		<a href="#step2" class="switcher btn btn-default"><i class="fa fa-arrow-left"></i> Go back</a>
-		<a href="#step4" class="switcher btn btn-success">Great! Next bit!</a>
+		<div id="amqpresult"></div>
+		<a href="#step2" class="switcher btn btn-default">Back</a>
+		<a href="#step4" class="switcher btn btn-success">Next</a>
 	</div>
 	<div id="step4" class="widgetbody" style="display:none;text-align:left; padding:30px">
 		<h2>Just a couple of steps to go</h2>
@@ -178,7 +184,7 @@
 			</p>
 			<p>
 				<input type="hidden" name="options[auth]" value="login"/>
-				SSL? 
+				SSL?
 				<br/>
 				<label for="rdSSLYes">
 					<input type="radio" id="rdSSLYes" name="options[ssl]" value="tls"/> Yes
@@ -189,8 +195,8 @@
 				</label>
 			</p>
 		</form>
-		<a href="#step3" class="switcher btn btn-default"><i class="fa fa-arrow-left"></i> Go back</a>
-		<a href="#step5" class="switcher btn btn-success">Great! Go on to the last step!</a>
+		<a href="#step3" class="switcher btn btn-default">Back</a>
+		<a href="#step5" class="switcher btn btn-success">Next</a>
 	</div>
 	<div id="step5" class="widgetbody" style="display:none;text-align:left; padding:30px">
 		<h2>What is your website address?</h2>
@@ -200,7 +206,7 @@
 				<input type="text" id="vhAddress" name="vhost" value="<?php echo $_SERVER['HTTP_HOST'] ?>" placeholder="URL here"/>
 			</p>
 			<p>
-				HTTPS? 
+				HTTPS?
 				<br/>
 				<label for="vhSSLYes">
 					<input type="radio" id="vhSSLYes" name="ssl" value="true"/> Yes
@@ -215,12 +221,34 @@
 				<input type="text" id="strShort" name="short" value="" placeholder="Short URL"/>
 			</p>
 		</form>
-		<a href="#step6" id="commit" class="switcher ajax btn btn-success">Awesome! Let's write it!</a>
+        <a href="#step4" class="switcher btn btn-default">Back</a>
+		<a href="#step6" class="switcher btn btn-success">Next</a>
 	</div>
-	<div id="step6" class="widgetbody" style="display:none;text-align:left; padding:30px">
+    <div id="step6" class="widgetbody" style="display:none;text-align:left; padding:30px">
+        <h2>YouTube credentials</h2>
+        <p>If you wish to use YouTube searching, you will need to provide a YouTube API key which you can get from <a href="https://console.developers.google.com/apis/credentials" target="_blank">here</a> by choosing YouTube. Enter it here:</p>
+        <form id="youtube">
+            <input type="text" id="strYouTubeAPI" name="youtubeapi" value="" placeholder="YouTube API Key"/>
+        </form>
+        <a href="#step5" class="switcher btn btn-default">Back</a>
+        <a href="#step7" class="switcher btn btn-success">Next</a>
+    </div>
+    <div id="step7" class="widgetbody" style="display:none;text-align:left; padding:30px">
+        <h2>Vimeo credentials</h2>
+        <p>If you wish to use Vimeo searching, you will need to provide a Vimeo API key which you can get from <a href="https://developer.vimeo.com/apps" target="_blank">here</a>. Enter it here:</p>
+        <form id="vimeo">
+            <input type="text" id="strVimeoClientId" name="client_id" value="" placeholder="Client ID"/>
+            <input type="text" id="strVimeoClientSecret" name="client_secret" value="" placeholder="Client Secret"/>
+        </form>
+        <a href="#step6" class="switcher btn btn-default">Back</a>
+        <a href="#step8" class="switcher ajax btn btn-success commit">Let's go!</a>
+    </div>
+	<div id="step8" class="widgetbody" style="display:none;text-align:left; padding:30px">
 		<h2>Your Settings</h2>
-		<textarea id="commitresult" cols="55" rows="10">Output will appear here</textarea>
-		<p><a href='/' class="btn btn-default">I'm ready, start using Chaplin</a></p>
+		<textarea id="commitresult" cols="30" rows="10">Output will appear here</textarea>
+        <a href="#step7" class="switcher btn btn-default">Back</a>
+        <p><a href="#" class="ajax commit btn btn-default">Retry</a></p>
+		<p><a href='/' class="btn btn-success">I'm ready, start using Chaplin</a></p>
 	</div>
 </div>
 <script>
@@ -288,22 +316,23 @@
         return json;
     };
 
-	$('a.switcher').click(function() {
-		var self = this;
+	$('a.switcher').click((ev) => {
+        ev.preventDefault();
+		var self = ev.currentTarget;
 		$('.widgetbody').hide();
 		$($(self).attr('href')).show();
 	});
-	$('a.ajax').click(function() {
-		var self = this;
+	$('a.ajax').click((ev) => {
+        ev.preventDefault();
+		var self = ev.currentTarget;
 		$.post(
 			$(self).attr('data-url'),
 			$('#'+$(self).attr('data-form')).serialize(),
-			function(data) {
-				$('#'+$(self).attr('data-output-element')).html(data);
-			}
+			data => $('#'+$(self).attr('data-output-element')).html(data)
 		);
 	})
-	$('#commit').click(function() {
+	$('.commit').click((ev) => {
+        ev.preventDefault();
 		vhost = $('#vhost').serializeObject();
 
 		$.post('/admin/setup/write',
@@ -322,10 +351,9 @@
 			sql: $('#sqlserver').serializeObject(),
 			vhost: vhost.vhost,
 			ssl: vhost.ssl,
-			short: vhost.short
-		}, function(data)
-		{
-			$('#commitresult').text(data);
-		});
+			short: vhost.short,
+            youtube: $('#youtube').serializeObject(),
+            vimeo: $('#vimeo').serializeObject()
+		}, data => $('#commitresult').text(data));
 	});
 </script>

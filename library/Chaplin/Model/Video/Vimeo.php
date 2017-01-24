@@ -22,75 +22,58 @@
  * @version    git
  * @link       https://github.com/dandart/projectchaplin
 **/
-class Chaplin_Model_Video_Convert
+class Chaplin_Model_Video_Vimeo
     extends Chaplin_Model_Field_Hash
     implements Chaplin_Model_Interface_Message
 {
+    const FIELD_VIMEOID = 'VimeoId';
     const FIELD_VIDEOID = 'VideoId';
 
-    private $_modelVideo;
-
     protected $_arrFields = [
+        self::FIELD_VIMEOID => ['Class' => 'Chaplin_Model_Field_Field'],
         self::FIELD_VIDEOID => ['Class' => 'Chaplin_Model_Field_Field']
     ];
 
-    public static function create(Chaplin_Model_Video $modelVideo)
+    public static function create(Chaplin_Model_Video $modelVideo, $strVimeoId)
     {
-        $msgVideo = new self();
-        $msgVideo->_setField(self::FIELD_VIDEOID, $modelVideo->getVideoId());
-        $msgVideo->_modelVideo = $modelVideo;
-        return $msgVideo;
+        $msgTest = new self();
+        $msgTest->_setField(self::FIELD_VIDEOID, $modelVideo->getVideoId());
+        $msgTest->_setField(self::FIELD_VIMEOID, $strVimeoId);
+        return $msgTest;
     }
 
-    public function getId()
+    private function _getVimeoId()
     {
-        return $this->_getField(self::FIELD_VIDEOID, null);
-    }
-
-    private function _getModelVideo()
-    {
-        if (is_null($this->_modelVideo)) {
-            $this->_modelVideo = Chaplin_Gateway::getInstance()
-            ->getVideo()
-            ->getByVideoId($this->_getField(self::FIELD_VIDEOID, null));
-        }
-        return $this->_modelVideo;
+        return $this->_getField(self::FIELD_VIMEOID, null);
     }
 
     public function process()
     {
+        echo 'Downloading '.$this->_getVimeoId().PHP_EOL;
+        ob_flush();
+        flush();
+
+        $strPathToDownloadTo = realpath(APPLICATION_PATH.'/../public/uploads');
+
+        $strOut = Chaplin_Service::getInstance()
+            ->getVimeo()
+            ->downloadVideo($this->_getVimeoId(), $strPathToDownloadTo, $ret);
+
+        echo $strOut;
+        ob_flush();
+        flush();
+        if (0 == $ret) {
+            echo 'Downloaded '.$this->_getVimeoId().PHP_EOL;
+        } else {
+            echo 'Failed to download '.$this->_getVimeoId().PHP_EOL;
+            throw new \Exception('Failed to download '.$this->_getVimeoId().' because: '.$strOut);
+        }
+        ob_flush();
+        flush();
+
         $modelVideo = Chaplin_Gateway::getInstance()
             ->getVideo()
             ->getByVideoId($this->_getField(self::FIELD_VIDEOID, null));
-
-        $strFullPath = APPLICATION_PATH.'/../public';
-
-        $strFilenameRawFullPath = $strFullPath.$modelVideo->getFilename();
-
-        echo 'Converting '.$strFilenameRawFullPath.PHP_EOL;
-        ob_flush();
-        flush();
-
-        $strPathToWebm = $strFullPath.$modelVideo->getFilename().'.webm';
-
-        $ret = 0;
-
-        $strError = Chaplin_Service::getInstance()
-            ->getEncoder()
-            ->convertFile($strFilenameRawFullPath, $strPathToWebm, $ret);
-
-        if(0 != $ret) {
-            throw new Exception('Unable to convert: '.$strFilenameRawFullPath);
-        }
-
-        echo 'Converted '.$strFilenameRawFullPath;
-        ob_flush();
-        flush();
-
-        unlink($strFilenameRawFullPath);
-
-        $modelVideo->setFilename($modelVideo->getFilename().'.webm');
-        $modelVideo->save();
 
         try {
             Chaplin_Gateway::getEmail()
@@ -105,7 +88,7 @@ class Chaplin_Model_Video_Convert
 
     public function getRoutingKey()
     {
-        return 'video.convert.'.$this->_getModelVideo()->getUsername();
+        return 'video.vimeo.'.$this->_getVimeoId();
     }
 
     public function getExchangeName()

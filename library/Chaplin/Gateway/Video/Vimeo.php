@@ -22,26 +22,28 @@
  * @version    git
  * @link       https://github.com/dandart/projectchaplin
 **/
-abstract class Chaplin_Socket_Connect_Abstract
-	extends Chaplin_Socket_Abstract
+class Chaplin_Gateway_Video_Vimeo
+    extends Chaplin_Gateway_Abstract
 {
-	protected function __construct($strHost, $intPort)
+	private $_daoExchange;
+
+	public function __construct(Chaplin_Dao_Amqp_Exchange $daoExchange)
 	{
-		$this->_strHost = $strHost;
-		$this->_intPort = $intPort;
-		// TODO check for IPv6
-		$this->_resourceSocket = socket_create(AF_INET, $this->_getProtocolType(), $this->_getProtocol());
+		$this->_daoExchange = $daoExchange;
 	}
 
-	abstract protected function _getProtocol();
+    public function vimeo()
+    {
+        echo 'Listening on vimeo';
+      $queueName = 'vimeo';
+      $callback = function(Chaplin_Model_Video_Vimeo $msg) {
+          $msg->process();
+      };
+      $this->_daoExchange->listen($queueName, $callback);
+    }
 
-	public function bind()
-	{
-		$this->_bBound = @socket_bind($this->_resourceSocket, '0.0.0.0');
-		if (!$this->_bBound) {
-			$this->_exceptionError();
-		}
-
-		return $this;
-	}
+    public function save(Chaplin_Model_Video_Vimeo $modelVimeo)
+    {
+        return $this->_daoExchange->save($modelVimeo);
+    }
 }

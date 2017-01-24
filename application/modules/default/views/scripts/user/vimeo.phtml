@@ -22,29 +22,24 @@
  * @version    git
  * @link       https://github.com/dandart/projectchaplin
 **/
-abstract class Chaplin_Socket_Listen_Abstract
-	extends Chaplin_Socket_Abstract
-{
-	private $_arrClients;
-
-	protected function __construct($strHost, $intPort)
-	{
-		$this->_strHost = $strHost;
-		$this->_intPort = $intPort;
-		// TODO check for IPv6
-		$this->_resourceSocket = socket_create(AF_INET, $this->_getProtocolType(), $this->_getProtocol());
-	}
-
-	abstract protected function _getProtocol();
-
-	public function bind()
-	{
-		socket_set_option($this->_resourceSocket, SOL_SOCKET, SO_REUSEADDR, 1);	
-		$this->_bBound = socket_bind($this->_resourceSocket, '0.0.0.0', $this->_intPort);
-		if (!$this->_bBound) {
-			$this->_exceptionError();
-		}
-	}
-
-	
-}
+?>
+<div class="content-header">
+    <?php if (!isset($this->ittVideos['data'][0])): ?>
+    Videos
+    <?php else: ?>
+    Videos for user <?php echo $this->ittVideos['data'][0]['user']['name'] ?>
+    <?php endif; ?>
+</div>
+<div class="content-centre">
+<?php foreach($this->ittVideos['data'] as $videoEntry):?>
+<a href="/video/watchvimeo/id/<?php echo substr($videoEntry['uri'], 8);?>">
+<div class="thumb-wrapper">
+<div class="thumb-img">
+    <img src="<?php echo htmlentities($videoEntry['pictures']['sizes'][3]['link']);?>" alt="View Video"/>
+</div>
+<p><?php echo $videoEntry['name'];?></p>
+</div>
+</a>
+<?php endforeach;?>
+</div>
+<script src="/js/uservimeo.js"></script>

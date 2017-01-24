@@ -44,7 +44,7 @@ class Admin_SetupController extends Zend_Controller_Action
         $strAdapter = isset($arrPost['adapter'])?$arrPost['adapter']:null;
         $arrParams = isset($arrPost['params'])?$arrPost['params']:array();
 
-        $this->_helper->layout()->disableLayout(); 
+        $this->_helper->layout()->disableLayout();
         $this->_helper->viewRenderer->setNoRender(true);
 
         try {
@@ -59,7 +59,7 @@ class Admin_SetupController extends Zend_Controller_Action
 
     public function amqptestAction()
     {
-        $this->_helper->layout()->disableLayout(); 
+        $this->_helper->layout()->disableLayout();
         $this->_helper->viewRenderer->setNoRender(true);
 
         try {
@@ -73,9 +73,16 @@ class Admin_SetupController extends Zend_Controller_Action
 
     public function smtptestAction()
     {
-        $this->_helper->layout()->disableLayout(); 
+        $this->_helper->layout()->disableLayout();
         $this->_helper->viewRenderer->setNoRender(true);
         $arrSmtp = $this->_request->getPost();
+
+        // Zend won't like this without
+        if (isset($arrSmtp['options']) &&
+            isset($arrSmtp['options']['ssl']) &&
+            empty($arrSmtp['options']['ssl'])) {
+            unset($arrSmtp['options']['ssl']);
+        }
         $transport = new Zend_Mail_Transport_Smtp(
             $arrSmtp['host'],
             $arrSmtp['options']
@@ -84,9 +91,20 @@ class Admin_SetupController extends Zend_Controller_Action
         // No SMTP tests exist atm
     }
 
+    private function _enableVimeo($arrPost)
+    {
+        $serviceVimeo = Chaplin_Service::getInstance()->getVimeo();
+        $clientId = $arrPost['default']['vimeo']['client_id'];
+        $clientSecret = $arrPost['default']['vimeo']['client_secret'];
+        $accessToken = $serviceVimeo->requestAccessToken($clientId, $clientSecret);
+
+        $arrPost['default']['vimeo']['access_token'] = $accessToken;
+        return $arrPost;
+    }
+
     public function writeAction()
     {
-        $this->_helper->layout()->disableLayout(); 
+        $this->_helper->layout()->disableLayout();
         $this->_helper->viewRenderer->setNoRender(true);
         $arrPost = array(
             'default' => $this->_request->getPost(),
@@ -96,7 +114,7 @@ class Admin_SetupController extends Zend_Controller_Action
         );
 
         $schemaSql = file_get_contents(APPLICATION_PATH . '/../sql/schema.sql');
-    
+
         $arrDefault = $arrPost['default'];
 
         if (!isset($arrDefault['sql'])) {
@@ -121,6 +139,8 @@ class Admin_SetupController extends Zend_Controller_Action
             exit();
         }
 
+        $arrPost = $this->_enableVimeo($arrPost);
+
         $config = new Zend_Config($arrPost, true);
         $config->setExtend('production', 'default');
         $config->setExtend('staging', 'production');
@@ -130,9 +150,15 @@ class Admin_SetupController extends Zend_Controller_Action
         $iniWriter->setConfig($config);
         try {
             $iniWriter->write(APPLICATION_PATH.'/../config/chaplin.ini');
-            echo 'File successfully written.';
+            if (!$arrPost['default']['vimeo']['access_token'])
+                echo 'Vimeo access token not available. Go back and try again if you plan on using it.'.PHP_EOL;
+
+            echo 'File successfully written.'.PHP_EOL.
+                'Starting application.'.PHP_EOL;
+            // Now start everything
+            system(APPLICATION_PATH.'/../cli.sh start');
         } catch (Exception $e) {
-            echo '; Could not write file. Please copy and insert the following into the file /config/chaplin.ini'.PHP_EOL;
+            echo 'Could not write file. Please either allow permissions to config/chaplin.ini to your web user and retry or copy and insert the following into the file /config/chaplin.ini, and then start the servers using ./cli.sh start :'.PHP_EOL;
             echo $iniWriter->render();
         }
     }

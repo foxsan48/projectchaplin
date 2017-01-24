@@ -22,7 +22,7 @@
  * @version    git
  * @link       https://github.com/dandart/projectchaplin
 **/
-require '../vendor/autoload.php';
+require __DIR__.'/../vendor/autoload.php';
 
 set_time_limit(0);
 
@@ -39,9 +39,6 @@ set_include_path(implode(PATH_SEPARATOR, array(
     realpath(APPLICATION_PATH . '/../library'),
     get_include_path(),
 )));
-
-/** Zend_Application */
-require_once 'Zend/Application.php';
 
 // Create application, bootstrap, and run
 $application = new Zend_Application(

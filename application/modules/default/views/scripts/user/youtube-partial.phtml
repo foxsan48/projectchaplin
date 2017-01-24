@@ -22,26 +22,15 @@
  * @version    git
  * @link       https://github.com/dandart/projectchaplin
 **/
-class Chaplin_Socket_Connect_Udp
-	extends Chaplin_Socket_Connect_Abstract
-{
-	const PROTOCOL = SOL_UDP;
+?>
 
-	private static $_arrConnections;
-
-	public static function create($strHost, $intPort)
-	{
-		$strId = self::_createId($strHost, $intPort);
-		if(isset(self::$_arrConnections[$strId])) {
-			return self::$_arrConnections[$strId];
-		}
-
-		self::$_arrConnections[$strId] = new self($strHost, $intPort);
-		return self::$_arrConnections[$strId];
-	}
-
-	protected function _getProtocol()
-	{
-		return self::PROTOCOL;
-	}
-}
+<?php foreach($this->ittVideos->items as $videoEntry):?>
+<a href="/video/watchyoutube/id/<?php echo $videoEntry->id->videoId;?>" data-next-page-token="<?php echo $this->ittVideos->nextPageToken; ?>">
+<div class="thumb-wrapper">
+<div class="thumb-img">
+    <img src="<?php echo htmlentities($videoEntry->getSnippet()->thumbnails->high->url);?>" alt="View Video"/>
+</div>
+<p><?php echo $videoEntry->getSnippet()->title;?></p>
+</div>
+</a>
+<?php endforeach;?>

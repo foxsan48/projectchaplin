@@ -37,7 +37,7 @@ class VideoController extends Chaplin_Controller_Action_Api
         if(is_null($strVideoId)) {
             return $this->_redirect('/');
         }
-        
+
         $modelVideo = Chaplin_Gateway::getInstance()
             ->getVideo()
             ->getByVideoId($strVideoId, $modelUser);
@@ -51,34 +51,91 @@ class VideoController extends Chaplin_Controller_Action_Api
         $ittComments = Chaplin_Gateway::getInstance()
             ->getVideo_Comment()
             ->getByVideoId($strVideoId);
-            
-        $this->view->assign('video', $modelVideo);
+
+        $this->view->video = $modelVideo;
         $this->view->assign('ittComments', $ittComments);
+
+        $this->view->vhost = Chaplin_Config_Chaplin::getInstance()->getFullVhost();
+
+        $url = $this->view->vhost.'/video/watch/id/'.$this->view->video->getVideoId();
+
         $strShortHost = Chaplin_Config_Servers::getInstance()->getShort();
         $strShortURL = 'http://'.$strShortHost.'/'.
             str_replace('/','-',base64_encode(hex2bin($strVideoId)));
         $this->view->assign('short', $strShortURL);
 
-        $strTwitterShare = '<iframe id="tweetbutton" allowtransparency="true" frameborder="0" scrolling="no" src="'.
-        'https://platform.twitter.com/widgets/tweet_button.html'.
-        '?url='.urlencode($strShortURL).
-        '&dnt=true'.
-        '&hashtags=projectchaplin'.
-        '&text='.$this->view->strTitle.' : '.
-        '"></iframe>';
+        $strTwitterShare = '<script>window.twttr = (function(d, s, id) {
+              var js, fjs = d.getElementsByTagName(s)[0],
+                t = window.twttr || {};
+              if (d.getElementById(id)) return t;
+              js = d.createElement(s);
+              js.id = id;
+              js.src = "https://platform.twitter.com/widgets.js";
+              fjs.parentNode.insertBefore(js, fjs);
+
+              t._e = [];
+              t.ready = function(f) {
+                t._e.push(f);
+              };
+
+              return t;
+            }(document, "script", "twitter-wjs"));</script>
+            <a class="twitter-share-button"
+              href="https://twitter.com/intent/tweet">
+            Tweet</a>';
+
+        $this->view->gnusocialshare = '
+            <link rel="stylesheet" href="/gs-share/css/styles.css" />
+            <div class="gs-share">
+                <button data-url="'.urlencode($url).'"
+                    data-title="'.urlencode($this->view->video->getTitle()).' on Chaplin"
+                    class="js-gs-share gs-share--icon">Share on GNU social</a>
+                </button>
+            </div>
+            <script src="/gs-share/js/gs-share.js"></script>';
+
+        $oauth = include APPLICATION_PATH.'/config/oauth.php';
+
+        $this->view->facebookAppId = $oauth['facebook']['client_id'];
+
+        $this->view->facebookshare = '<div class="fb-share-button"
+            data-href="'.$url.'"
+            data-layout="button_count"
+            data-size="small"
+            data-mobile-iframe="false"
+        >
+            <a class="fb-xfbml-parse-ignore"
+                target="_blank"
+                href="https://www.facebook.com/sharer/sharer.php?u='.
+                    urlencode(
+                        $this->view->vhost.
+                        '/video/watch/id/'.
+                        $this->view->video->getVideoId()
+                    ).'&amp;src=sdkpreparse">
+                    Share
+            </a>
+        </div>';
 
         $this->view->twittershare = $strTwitterShare;
-        
+
+        $this->view->gplusshare = '<script src="https://apis.google.com/js/platform.js" async defer></script>
+            <div class="g-plus" data-action="share" ... ></div>';
+
+        $this->view->diasporashare = '<a href="javascript:;" onclick="window.open(\'https://sharetodiaspora.github.io/?url=\'+encodeURIComponent(location.href)+\'&title=\'+encodeURIComponent(document.title),\'das\',\'location=no,links=no,scrollbars=no,toolbar=no,width=620,height=550\'); return false;" rel="nofollow" target="_blank">
+        	<img src="https://sharetodiaspora.github.io/favicon.png" style="border: 0px solid;" />
+            Share on Diaspora
+        </a>';
+
         $formComment = new default_Form_Video_Comment();
-                
+
         if(!$this->_request->isPost()) {
             return $this->view->assign('formComment', $formComment);
         }
-        
+
         if(!Chaplin_Auth::getInstance()->hasIdentity()) {
             return $this->_redirect('/login');
         }
-        
+
         if(!$formComment->isValid($this->_request->getPost())) {
             return $this->view->assign('formComment', $formComment);
         }
@@ -87,7 +144,7 @@ class VideoController extends Chaplin_Controller_Action_Api
         if (empty($strComment)) {
             return $this->view->assign('formComment', $formComment);
         }
-          
+
         $modelComment = Chaplin_Model_Video_Comment::create(
             $modelVideo,
             $modelUser,
@@ -97,7 +154,7 @@ class VideoController extends Chaplin_Controller_Action_Api
         Chaplin_Gateway::getInstance()
             ->getVideo_Comment()
             ->save($modelComment);
-        
+
         return $this->view->assign('formComment', $formComment);
     }
 
@@ -114,7 +171,7 @@ class VideoController extends Chaplin_Controller_Action_Api
         if(is_null($strVideoId)) {
             return $this->_redirect('/');
         }
-        
+
         $strNodeId = $this->_request->getParam('node', 0);
 
         $modelNode = Chaplin_Gateway::getNode()
@@ -141,19 +198,6 @@ class VideoController extends Chaplin_Controller_Action_Api
         return $this->_redirect('https://'.$strHost.'/video/watch/id/'.$strId);
     }
 
-    public function testAction()
-    {
-         $modelVideo = Chaplin_Model_Video::create(
-            Zend_Auth::getInstance()->getIdentity()->getUser(),
-            '',
-            '',
-            'Test Video'
-        );
-        $modelVideo->save();
-        
-        $this->_redirect('/video/watch/id/'.$modelVideo->getVideoId());
-    }
-
     public function watchyoutubeAction()
     {
         $strVideoId = $this->_request->getParam('id', null);
@@ -163,8 +207,8 @@ class VideoController extends Chaplin_Controller_Action_Api
 
         // Get the YT information
         try {
-            $yt = new Zend_Gdata_YouTube();
-            $entryVideo = $yt->getVideoEntry($strVideoId);
+            $ytService = Chaplin_Service::getInstance()->getYouTube();
+            $entryVideo = $ytService->getVideoById($strVideoId);
             $this->view->entryVideo = $entryVideo;
         } catch (Exception $e) {
             throw new Chaplin_Exception_NotFound('Youtube Id = '.$strVideoId);
@@ -172,12 +216,12 @@ class VideoController extends Chaplin_Controller_Action_Api
         // This won't work remotely
         if (in_array($this->_request->getClientIp(), ['127.0.0.1', '::1'])) {
             $this->view->videoURL = Chaplin_Service::getInstance()
-                ->getYouTube($strVideoId)
-                ->getDownloadURL();
+                ->getYouTube()
+                ->getDownloadURL($strVideoId);
             $this->view->isLocal = true;
         }
         $this->view->strScheme = Chaplin_Config_Chaplin::getInstance()->getScheme();
-        $this->view->strTitle = $this->view->entryVideo->getTitle()->getText();
+        $this->view->strTitle = $this->view->entryVideo->getSnippet()->title;
     }
 
     public function importyoutubeAction()
@@ -190,9 +234,51 @@ class VideoController extends Chaplin_Controller_Action_Api
         $modelUser = Chaplin_Auth::getInstance()->getIdentity()->getUser();
 
         $modelVideo = Chaplin_Service::getInstance()
-            ->getYouTube($strVideoId)
-            ->importVideo($modelUser);
-        
+            ->getYouTube()
+            ->importVideo($modelUser, $strVideoId);
+
+        $this->_redirect('/video/watch/id/'.$modelVideo->getVideoId());
+    }
+
+    public function watchvimeoAction()
+    {
+        $strVideoId = $this->_request->getParam('id', null);
+        if(is_null($strVideoId)) {
+            return $this->_redirect('/');
+        }
+
+        // Get the YT information
+        try {
+            $vimeoService = Chaplin_Service::getInstance()->getVimeo();
+            $entryVideo = $vimeoService->getVideoById($strVideoId);
+            $this->view->entryVideo = $entryVideo;
+        } catch (Exception $e) {
+            throw new Chaplin_Exception_NotFound('Vimeo Id = '.$strVideoId);
+        }
+        // This won't work remotely
+        if (in_array($this->_request->getClientIp(), ['127.0.0.1', '::1'])) {
+            $this->view->videoURL = Chaplin_Service::getInstance()
+                ->getVimeo()
+                ->getDownloadURL($strVideoId);
+            $this->view->isLocal = true;
+        }
+        $this->view->strScheme = Chaplin_Config_Chaplin::getInstance()->getScheme();
+        $this->view->strTitle = $this->view->entryVideo['name'];
+    }
+
+    public function importvimeoAction()
+    {
+        $strVideoId = $this->_request->getParam('id', null);
+        if(is_null($strVideoId)) {
+            return $this->_redirect('/');
+        }
+
+        $modelUser = Chaplin_Auth::getInstance()->getIdentity()->getUser();
+
+        $modelVideo = Chaplin_Service::getInstance()
+            ->getVimeo()
+            ->importVideo($modelUser, $strVideoId);
+
         $this->_redirect('/video/watch/id/'.$modelVideo->getVideoId());
     }
 
@@ -222,7 +308,7 @@ class VideoController extends Chaplin_Controller_Action_Api
         $this->_helper->viewRenderer->setNoRender();
 
         $strCommentId = $this->_request->getParam('id', null);
-        
+
         $modelComment = Chaplin_Gateway::getInstance()
             ->getVideo_Comment()
             ->getById($strCommentId);
@@ -237,12 +323,12 @@ class VideoController extends Chaplin_Controller_Action_Api
 
         $this->getResponse()->setHttpResponseCode(204);
     }
-    
+
     public function downloadAction()
     {
-        $this->_helper->layout()->disableLayout(); 
+        $this->_helper->layout()->disableLayout();
         $this->_helper->viewRenderer->setNoRender(true);
-        
+
         $strVideoId = $this->_request->getParam('id', null);
         if(is_null($strVideoId)) {
             return $this->_redirect('/');
@@ -254,7 +340,7 @@ class VideoController extends Chaplin_Controller_Action_Api
             ->getIdentity()
             ->getUser():
         null;
-        
+
         $modelVideo = Chaplin_Gateway::getInstance()
             ->getVideo()
             ->getByVideoId($strVideoId, $modelUser);
@@ -281,10 +367,10 @@ class VideoController extends Chaplin_Controller_Action_Api
             ->getVideo()
             ->getByVideoId($strVideoId, $modelUser);
 
-        $this->_helper->layout()->disableLayout(); 
+        $this->_helper->layout()->disableLayout();
         $this->_helper->viewRenderer->setNoRender(true);
-    
-        
+
+
         $strVote = $this->_request->getParam('vote', null);
         if(is_null($strVideoId)) {
             return $this->_redirect('/');
@@ -296,15 +382,15 @@ class VideoController extends Chaplin_Controller_Action_Api
             Chaplin_Gateway::getVote()->addVote($modelUser, $modelVideo, 0);
         }
     }
-    
+
     public function uploadAction()
     {
         $form = new default_Form_Video_Upload();
-        
+
         if(!$this->_request->isPost()) {
             return $this->view->assign('form', $form);
-        }        
-        
+        }
+
         if(!$form->isValid($this->_request->getPost())) {
             return $this->view->assign('form', $form);
         }
@@ -325,7 +411,7 @@ class VideoController extends Chaplin_Controller_Action_Api
                     'overwrite' => true
                 )
             );*/
-            $strFilename = $arrFileInfo['tmp_name'];      
+            $strFilename = $arrFileInfo['tmp_name'];
             $strMimeType = $arrFileInfo['type'];
             if (0 !== strpos($strMimeType, 'video/')) {
                 // Ignore any non-videos
@@ -334,41 +420,43 @@ class VideoController extends Chaplin_Controller_Action_Api
             }
 
             $strPathToThumb = $strFilename.'.png';
-            
+
             $strRelaFile = basename($strFilename);
             $strRelaThumb = basename($strPathToThumb);
-            
+
             $arrPathInfo = pathinfo($strFilename);
             $strTitle = $arrPathInfo['filename'];
-            
+
             $strRelaPath = '/uploads/';
-            
+
             $ret = 0;
-                
+
             $strError = Chaplin_Service::getInstance()
                 ->getEncoder()
                 ->getThumbnail($strFilename, $strPathToThumb, $ret);
             if(0 != $ret) {
                 die(var_dump($strError));
             }
-            
+
             $modelUser = Chaplin_Auth::getInstance()->getIdentity()->getUser();
-            
+
             $modelVideo = Chaplin_Model_Video::create(
                 $modelUser,
                 $strRelaPath.$strRelaFile,
                 $strRelaPath.$strRelaThumb,
-                $strTitle
+                $strTitle,
+                '',
+                ''
             );
             $modelVideo->save();
-            
+
             $modelConvert = Chaplin_Model_Video_Convert::create($modelVideo);
             Chaplin_Gateway::getInstance()->getVideo_Convert()->save($modelConvert);
-           
+
             $this->view->videos[] = $modelVideo;
         }
     }
-    
+
     public function nameAction()
     {
         // Not sure how to implement this yet
@@ -387,21 +475,21 @@ class VideoController extends Chaplin_Controller_Action_Api
         $ittVideos = Chaplin_Gateway::getInstance()
             ->getVideo()
             ->getByUserUnnamed($modelUser);
-        
+
         $this->view->videos = $ittVideos;
-        
+
         $form = new default_Form_Video_Name($ittVideos);
-        
-        if (!$this->_request->isPost()) {        
+
+        if (!$this->_request->isPost()) {
             return $this->view->form = $form;
         }
-        
+
         if (!$form->isValid($this->_request->getPost())) {
             return $this->view->form = $form;
         }
-        
+
         $arrVideos = $this->_request->getPost('Videos', array());
-        
+
         foreach($arrVideos as $strVideoId => $arrVideos) {
             $modelVideo = Chaplin_Gateway::getInstance()
                 ->getVideo()
@@ -411,10 +499,10 @@ class VideoController extends Chaplin_Controller_Action_Api
                 $modelVideo->save();
             }
         }
-        
-        $this->_redirect('/');        
+
+        $this->_redirect('/');
     }
-    
+
     public function editAction()
     {
         $this->view->strTitle = 'Edit Video - Chaplin';
@@ -429,31 +517,31 @@ class VideoController extends Chaplin_Controller_Action_Api
         if(is_null($strVideoId)) {
             return $this->_redirect('/');
         }
-        
+
         $modelVideo = Chaplin_Gateway::getInstance()
             ->getVideo()
             ->getByVideoId($strVideoId, $modelUser);
-        
+
         $form = new default_Form_Video_Edit($modelVideo);
-        
+
         if (!$this->_request->isPost()) {
             return $this->view->form = $form;
         }
-        
+
         if (!$form->isValid($this->_request->getPost())) {
             return $this->view->form = $form;
         }
-        
+
         $arrVideos = $this->_request->getPost('Video', array());
-        
+
         if($modelVideo->isMine()) {
             $modelVideo->setFromAPIArray($arrVideos);
             $modelVideo->save();
         }
-        
+
         return $this->_redirect('/video/watch/id/'.$strVideoId);
     }
-    
+
     public function deleteAction()
     {
         $modelUser = Chaplin_Auth::getInstance()
@@ -466,22 +554,22 @@ class VideoController extends Chaplin_Controller_Action_Api
         if(!Chaplin_Auth::getInstance()->hasIdentity()) {
             return $this->_redirect('/login');
         }
-        
+
         $strVideoId = $this->_request->getParam('id', null);
         if(is_null($strVideoId)) {
             return $this->_redirect('/');
         }
-        
+
         $modelVideo = Chaplin_Gateway::getInstance()
             ->getVideo()
             ->getByVideoId($strVideoId, $modelUser);
-        
-        if ($modelVideo->isMine() || 
+
+        if ($modelVideo->isMine() ||
             Chaplin_Auth::getInstance()->getIdentity()->getUser()->isGod()) {
             // Confirmation?
             $modelVideo->delete();
         }
-                    
+
         $this->_redirect('/');
     }
 }

@@ -22,30 +22,16 @@
  * @version    git
  * @link       https://github.com/dandart/projectchaplin
 **/
-class Chaplin_Async
-{
-	public static function setTimeout($intTime, Closure $closure)
-	{
-		switch(pcntl_fork()) {
-			case -1:
-				throw new Exception('Error forking');
-			case 0:
-				sleep($intTime);
-				$closure();
-				self::setTimeout($intTime, $closure);
-			default:
-		}
-	}
-
-	public static function async(Closure $closure)
-	{
-		$pid = pcntl_fork();
-		switch(pcntl_fork()) {
-			case -1:
-				throw new Exception('Error forking');
-			case 0:
-				return $closure();
-			default:
-		}
-	}
-}
+?>
+<?php if (isset($this->ittVideos['data'])):
+foreach($this->ittVideos['data'] as $videoEntry):?>
+<a href="/video/watchvimeo/id/<?php echo substr($videoEntry['uri'], 8);?>">
+<div class="thumb-wrapper">
+<div class="thumb-img">
+    <img src="<?php echo htmlentities($videoEntry['pictures']['sizes'][3]['link']);?>" alt="View Video"/>
+</div>
+<p><?php echo $videoEntry['name'];?></p>
+</div>
+</a>
+<?php endforeach;
+endif;?>
